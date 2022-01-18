@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.net.URI;
 
 /**
- * Java 代码操作HDFS
+ * Java 代码操作HDFS，单独执行时需要将pom.xml中的provide 属性注释，否则会提示找不到对应的包
  * 文件操作:上传文件，下载文件，删除文件
  */
 public class HdfsOp {
