@@ -7,52 +7,39 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 
 import java.io.IOException;
 
 
 /**
- * 需求:读取hdfs 上的hello.txt文件,计算文件中每个单词出现的总次数
- *原始文件hello.txt内容如下：
- * hello you
- * hello me
- *
- * 最终需要的结果形式如下：
- * hello    2
- * me   1
- * you  1
- * hadoop 执行命令 hadoop jar hadoop_demo-1.0-SNAPSHOT-jar-with-dependencies.jar com.imooc.mr.WordCountJob /test/hello.txt /out
+ * 需求:读取SequenceFile文件
+ * hadoop 执行命令 hadoop jar hadoop_demo-1.0-SNAPSHOT-jar-with-dependencies.jar com.imooc.mr.WordCountJobSeq /seqFile /out
  * mvn clean package -DskipTests （编译打包命令）
  */
-public class WordCountJob {
+public class WordCountJobSeq {
     /**
      * Map阶段
      */
-    public static class MyMapper extends Mapper<LongWritable, Text,Text,LongWritable>{
+    public static class MyMapper extends Mapper<Text, Text,Text,LongWritable>{
         // 使用Logger进行日志输出
         //Logger logger = LoggerFactory.getLogger(MyMapper.class);
         /**
          * 接收<k1,v1> 输出 <k2,v2>
-         * @param k1 代表行首的偏移量
-         * @param v1 代表每一行数据
+         * @param k1 代表文件名
+         * @param v1 代表文件内容
          * 对于输入分割中的每个键/值对调用一次。 大多数应用程序应该覆盖这个函数。
          * @param context
          * @throws IOException
          * @throws InterruptedException
          */
         @Override
-        protected void map(LongWritable k1,Text v1,Context context) throws IOException, InterruptedException {
+        protected void map(Text k1,Text v1,Context context) throws IOException, InterruptedException {
             // 输出 k1 ,v1 的值
-            //System.out.println("<k1,v1>=<"+k1.get()+","+v1.toString()+">");
+            //System.out.println("<k1,v1>=<"+k1.toString()+","+v1.toString()+">");
             //使用log 输出
            // logger.info("<k1,v1>=<"+k1.get()+","+v1.toString()+">");
             String[] words = v1.toString().split(" ");
@@ -67,10 +54,20 @@ public class WordCountJob {
         }
     }
     /**
+     *
      * Reduce 阶段
      */
     public static class MyReduce extends Reducer<Text,LongWritable,Text,LongWritable>{
         //Logger logger = LoggerFactory.getLogger(MyReduce.class);
+
+        /**
+         * 针对<k2,{v2...}的数据进行累加求和,并且把最终数据转为k3,v3写出去
+         * @param k2
+         * @param v2s
+         * @param context
+         * @throws IOException
+         * @throws InterruptedException
+         */
         @Override
         protected void reduce(Text k2, Iterable<LongWritable> v2s, Context context) throws IOException, InterruptedException {
             //创建一个sum变量,保存v2s的值
@@ -104,7 +101,7 @@ public class WordCountJob {
             // 创建一个Job
             Job job = Job.getInstance(conf);
             //
-            job.setJarByClass(WordCountJob.class);
+            job.setJarByClass(WordCountJobSeq.class);
             //指定输入路径
             FileInputFormat.setInputPaths(job,new Path(args[0]));
             // 指定输出路径
@@ -115,6 +112,8 @@ public class WordCountJob {
             job.setMapOutputKeyClass(Text.class);
             // 指定v2的类型
             job.setMapOutputValueClass(LongWritable.class);
+            // 设置输出数据处理类，生成K1,V1的FileInputFormat 处理子类,默认是TextInputFormat
+            job.setInputFormatClass(SequenceFileInputFormat.class);
             // 指定reduce相关的代码
             job.setReducerClass(MyReduce.class);
             // 指定K3的类型

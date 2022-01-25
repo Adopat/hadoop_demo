@@ -27,7 +27,7 @@ public class WordCoutJobNoReduce {
          * 接收<k1,v1> 输出 <k2,v2>
          * @param k1 代表行首的偏移量
          * @param v1 代表每一行数据
-         * 对于输入分割中的每个键/值对调用一次。 大多数应用程序应该覆盖这个函数，但默认值是identity函数。
+         * 对于输入分割中的每个键/值对调用一次。
          * @param context
          * @throws IOException
          * @throws InterruptedException

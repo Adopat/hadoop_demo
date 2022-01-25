@@ -7,33 +7,22 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 
 import java.io.IOException;
 
 
 /**
- * 需求:读取hdfs 上的hello.txt文件,计算文件中每个单词出现的总次数
- *原始文件hello.txt内容如下：
- * hello you
- * hello me
- *
- * 最终需要的结果形式如下：
- * hello    2
- * me   1
- * you  1
- * hadoop 执行命令 hadoop jar hadoop_demo-1.0-SNAPSHOT-jar-with-dependencies.jar com.imooc.mr.WordCountJob /test/hello.txt /out
+ * 数据倾斜 增加Reduce任务个数，对比不增加Reduce 消耗时间(对于数据倾斜太大的数据,增加Reduce个数提升效果不大)
+ * 数据格式 5 bkadjfkfjkdfhksajdkfhdkfassdfdfdjbkkkkkkkkksaasd
+ * 其中 5-900W 1-4 6-10 共100w
+ * hadoop 执行命令 hadoop jar hadoop_demo-1.0-SNAPSHOT-jar-with-dependencies.jar com.imooc.mr.WordCountJobSkew /test_1000W.txt /out1000_1 1
+ * 10个ReduceTask 执行 hadoop jar hadoop_demo-1.0-SNAPSHOT-jar-with-dependencies.jar com.imooc.mr.WordCountJobSkew /test_1000W.txt /out1000 10
  * mvn clean package -DskipTests （编译打包命令）
  */
-public class WordCountJob {
+public class WordCountJobSkew {
     /**
      * Map阶段
      */
@@ -56,14 +45,12 @@ public class WordCountJob {
             //使用log 输出
            // logger.info("<k1,v1>=<"+k1.get()+","+v1.toString()+">");
             String[] words = v1.toString().split(" ");
-            // 迭代切割出来的单词数据
-            for(String word:words){
-                Text k2 = new Text(word);
-                LongWritable v2 = new LongWritable(1L);
-                //System.out.println("<k2:"+word+"...v2:1>");
-                //logger.info("<k2:"+word+"...v2:1>");
-                context.write(k2,v2);
-            }
+            // 切割出来的数据我们只需要words[0]就可以了，主要是统计数字出现的次数
+            Text k2 = new Text(words[0]);
+            LongWritable v2 = new LongWritable(1L);
+            // 把<k2.v2>写出
+            context.write(k2,v2);
+
         }
     }
     /**
@@ -71,12 +58,25 @@ public class WordCountJob {
      */
     public static class MyReduce extends Reducer<Text,LongWritable,Text,LongWritable>{
         //Logger logger = LoggerFactory.getLogger(MyReduce.class);
+
+        /**
+         * 针对<k2,{v2...}>的数据进行累加求和，并且最终把数据转化为k3,v3写出去
+         * @param k2
+         * @param v2s
+         * @param context
+         * @throws IOException
+         * @throws InterruptedException
+         */
         @Override
         protected void reduce(Text k2, Iterable<LongWritable> v2s, Context context) throws IOException, InterruptedException {
             //创建一个sum变量,保存v2s的值
             long sum = 0L;
             for(LongWritable v2:v2s){
                 sum +=v2.get();
+                //模拟Reduce的复杂计算消耗的时间
+                if(sum%200 == 0){
+                    Thread.sleep(1);
+                }
             }
             // 组装k3,v3
             Text k3 = k2;
@@ -96,15 +96,15 @@ public class WordCountJob {
      */
     public static void main(String[] args) {
         try {
-            if(args.length!=2){
+            if(args.length!=3){
                 System.exit(100);
             }
             // 指定Job需要配置的参数
             Configuration conf = new Configuration();
             // 创建一个Job
             Job job = Job.getInstance(conf);
-            //
-            job.setJarByClass(WordCountJob.class);
+            //注意了：这一行必须设置，否则在集群中执行的时候是找不到WordCountJobSkew这个类的
+            job.setJarByClass(WordCountJobSkew.class);
             //指定输入路径
             FileInputFormat.setInputPaths(job,new Path(args[0]));
             // 指定输出路径
@@ -121,6 +121,8 @@ public class WordCountJob {
             job.setMapOutputKeyClass(Text.class);
             // 指定v3的类型
             job.setOutputValueClass(LongWritable.class);
+            // 设置Reducer任务个数,第三个参数为输入的Reduce个数
+            job.setNumReduceTasks(Integer.parseInt(args[2]));
             // 提交Job
             job.waitForCompletion(true);
 

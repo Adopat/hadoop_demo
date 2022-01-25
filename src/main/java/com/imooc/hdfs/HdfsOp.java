@@ -25,10 +25,11 @@ public class HdfsOp {
         //get(fileSystem);
         // 上传文件
        //put(fileSystem,"user.txt","D:\\user.txt");
+        put(fileSystem,"testHadoop_141M.txt","E:\\testHadoop_141M.txt");
        // 下载文件
         //get(fileSystem,"/test/user.txt","D:\\user_bak.txt");
         // 删除文件
-        delete(fileSystem,"/test/user.txt");
+        //delete(fileSystem,"/test/user.txt");
 
 
     }
@@ -37,7 +38,7 @@ public class HdfsOp {
      *文件上传
      * @param fileSystem
      * @param outputPath 文件输出路径
-     * @param inputPath 读取文件路劲
+     * @param inputPath 读取文件路径
      * @throws IOException
      */
     public static void put(FileSystem fileSystem,String outputPath,String inputPath) throws IOException{

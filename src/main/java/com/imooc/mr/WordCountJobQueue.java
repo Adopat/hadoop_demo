@@ -7,33 +7,21 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import org.apache.hadoop.util.GenericOptionsParser;
 
 import java.io.IOException;
 
 
 /**
- * 需求:读取hdfs 上的hello.txt文件,计算文件中每个单词出现的总次数
- *原始文件hello.txt内容如下：
- * hello you
- * hello me
- *
- * 最终需要的结果形式如下：
- * hello    2
- * me   1
- * you  1
- * hadoop 执行命令 hadoop jar hadoop_demo-1.0-SNAPSHOT-jar-with-dependencies.jar com.imooc.mr.WordCountJob /test/hello.txt /out
- * mvn clean package -DskipTests （编译打包命令）
+ * 指定队列名称的MapReduce程序
+ * 指定默认队列 hadoop jar hadoop_demo-1.0-SNAPSHOT-jar-with-dependencies.jar com.imooc.mr.WordCountJobQueue  /test/hello.txt /out_queue_default
+ * 指定offline队列 hadoop_demo-1.0-SNAPSHOT-jar-with-dependencies.jar com.imooc.mr.WordCountJobQueue -Dmapreduce.job.queuename=offline /test/hello.txt /out_queue_offline
+ * 注意这里不能指定 online队列
  */
-public class WordCountJob {
+public class WordCountJobQueue {
     /**
      * Map阶段
      */
@@ -96,19 +84,18 @@ public class WordCountJob {
      */
     public static void main(String[] args) {
         try {
-            if(args.length!=2){
-                System.exit(100);
-            }
             // 指定Job需要配置的参数
             Configuration conf = new Configuration();
+            //解析命令行中通过-D传递过来的参数，添加到conf中
+            String[] remainingArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
             // 创建一个Job
             Job job = Job.getInstance(conf);
             //
-            job.setJarByClass(WordCountJob.class);
+            job.setJarByClass(WordCountJobQueue.class);
             //指定输入路径
-            FileInputFormat.setInputPaths(job,new Path(args[0]));
+            FileInputFormat.setInputPaths(job,new Path(remainingArgs[0]));
             // 指定输出路径
-            FileOutputFormat.setOutputPath(job,new Path(args[1]));
+            FileOutputFormat.setOutputPath(job,new Path(remainingArgs[1]));
             // 指定map 相关的代码
             job.setMapperClass(MyMapper.class);
             // 指定 K2的类型
